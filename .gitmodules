@@ -1,0 +1,3 @@
+[submodule "newnode"]
+	path = newnode
+	url = https://github.com/clostra/newnode.git
