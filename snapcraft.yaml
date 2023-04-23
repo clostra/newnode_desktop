@@ -1,0 +1,70 @@
+name: newnode-vpn-desktop # you probably want to 'snapcraft register <name>'
+base: core18
+version: git
+summary: NewNode VPN http[s] proxy to thwart censorship/blocking
+description: |
+  NewNode VPN is an http[s] proxy that attempts to defeat web
+  censorship or site blocking using an ad hoc peer-to-peer network.
+  For http, it tries to download the page from multiple places,
+  including the origin server but also NewNode peers and other
+  locations where it might be cached.  For https, it tries to find an
+  unblocked path to the origin server using its peer-to-peer network.
+  Installing NewNode VPM adds your local instance of NewNode VPN to
+  that peer-to-peer network, which will assist other users' attempts
+  to access blocked web sites.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+parts:
+  nn-vpn-proxy:
+    source: https://github.com/clostra/newnode
+    source-type: git
+    override-build: |
+      update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-10 100
+      update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100
+      update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-10 100
+      ./build.sh
+      test -d ../install/bin || mkdir ../install/bin
+      cp client ../install/bin/client
+
+    stage: [ bin/client ]
+    prime: [ bin/client ]
+    organize:
+        client: bin/
+    build-packages: # packages required for the part to build
+       [ automake, clang-10, clang-format-10, libsodium-dev, libtool, make, pkg-config ]
+    stage-packages: # packages required to run the part
+       [ libsodium-dev, wget ] 
+    build-snaps: # snaps required for the part to build
+        [ ] 
+    stage-snaps: # snaps required to run the part
+        [ ] 
+    # See 'snapcraft plugins'
+    plugin: nil
+
+apps:
+    nn-vpn-proxy:
+      command: bin/client
+      daemon: simple
+      plugs: [ network, network-bind, network-observe ]
+
+#services:
+#  newnode-service:
+#    command: client -d # specify port number and stderr file
+#    daemon: simple
+#    working-directory: $SNAP_DATA
+#    restart-condition: on-failure
+#    plugs: [ network, network-bind, syslog ]
+#    environment:
+#      # on Linux PATH needs to find wget executable
+#      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+#      - SNAP_NAME=$SNAP_NAME
+#      - SNAP_REVISION=$SNAP_REVISION
+#
+#ports:
+#  8888/tcp: {}
+#  80/tcp: {}
+#  443/tcp: {}
+#  # make sure we can send/receive arbitrary UDP traffic
+#
