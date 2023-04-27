@@ -24,6 +24,8 @@ parts:
       update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-10 100
       update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100
       update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-10 100
+      sed --in-place -e "s,/usr/bin/wget,$(which wget)," https_wget.c
+      grep PATH_WGET https_wget.c
       ./build.sh
       test -d ../install/bin || mkdir ../install/bin
       cp client ../install/bin/client
@@ -45,7 +47,7 @@ parts:
 
 apps:
     nn-vpn-proxy:
-      command: bin/client
+      command: bin/client -v
       daemon: simple
       plugs: [ network, network-bind, network-observe ]
 
