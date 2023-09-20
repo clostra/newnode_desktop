@@ -1,4 +1,4 @@
-name: newnode-vpn-desktop # you probably want to 'snapcraft register <name>'
+name: newnode-vpn    # you probably want to 'snapcraft register <name>'
 base: core18
 version: git
 summary: NewNode VPN http[s] proxy to thwart censorship/blocking
@@ -14,59 +14,41 @@ description: |
   to access blocked web sites.
 
 grade: devel # must be 'stable' to release into candidate/stable channels
-confinement: devmode # use 'strict' once you have the right plugs and slots
+confinement: strict # use 'strict' once you have the right plugs and slots
 
 parts:
-  nn-vpn-proxy:
+  newnode-vpn:
     source: https://github.com/clostra/newnode
     source-type: git
+    # note that https_wget.c is patched below to allow the location of the wget
+    # executable to be specified with an environment variable.   Since the sed 
+    # script will be run every time the snap is recompiled, make sure that it 
+    # doesn't make any cumulative changes.
     override-build: |
       update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-10 100
       update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100
       update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-10 100
-      sed --in-place -e "s,/usr/bin/wget,$(which wget)," https_wget.c
+      sed --in-place -e 's,"/usr/bin/wget",getenv("PATH_WGET"),' https_wget.c
       grep PATH_WGET https_wget.c
       ./build.sh
       test -d ../install/bin || mkdir ../install/bin
       cp client ../install/bin/client
+      (echo '#!/bin/bash' ; echo export 'PATH_WGET=$(which wget)'; echo 'exec $SNAP/bin/client -v') > ../install/bin/client.sh
+      chmod +x ../install/bin/client.sh
 
-    stage: [ bin/client ]
-    prime: [ bin/client ]
+    stage: [ bin/client, bin/client.sh ]
+    prime: [ bin/client, bin/client.sh ]
     organize:
         client: bin/
     build-packages: # packages required for the part to build
-       [ automake, clang-10, clang-format-10, libsodium-dev, libtool, make, pkg-config ]
+       [ automake, clang-10, clang-format-10, libsodium-dev, libtool, make, pkg-config, wget ]
     stage-packages: # packages required to run the part
-       [ libsodium-dev, wget ] 
-    build-snaps: # snaps required for the part to build
-        [ ] 
-    stage-snaps: # snaps required to run the part
-        [ ] 
+       [ libpsl5, libsodium-dev, libpcre2-8-0, wget ] 
     # See 'snapcraft plugins'
     plugin: nil
 
 apps:
-    nn-vpn-proxy:
-      command: bin/client -v
+    newnode-vpn:
+      command: bin/client.sh
       daemon: simple
-      plugs: [ network, network-bind, network-observe ]
-
-#services:
-#  newnode-service:
-#    command: client -d # specify port number and stderr file
-#    daemon: simple
-#    working-directory: $SNAP_DATA
-#    restart-condition: on-failure
-#    plugs: [ network, network-bind, syslog ]
-#    environment:
-#      # on Linux PATH needs to find wget executable
-#      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-#      - SNAP_NAME=$SNAP_NAME
-#      - SNAP_REVISION=$SNAP_REVISION
-#
-#ports:
-#  8888/tcp: {}
-#  80/tcp: {}
-#  443/tcp: {}
-#  # make sure we can send/receive arbitrary UDP traffic
-#
+      plugs:  [ network, network-bind, network-observe ]
